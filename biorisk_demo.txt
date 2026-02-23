@@ -1,0 +1,122 @@
+
+======================================================================
+BIOSAFETY LOG-RISK MARKOV FRAMEWORK
+======================================================================
+
+A Log-Scale Markov Framework for Biosafety Risk Assessment
+From WHO Classification to Dynamic Risk Management
+
+======================================================================
+
+[1] PRIOR DISTRIBUTIONS
+----------------------------------------
+Training hours:   median=50.4
+                  95% CI=[19.0, 132.4]
+Maintenance freq: median=1.00
+                  95% CI=[0.37, 2.67]
+Maintenance adh:  mean=0.50
+                  95% CI=[0.10, 0.91]
+
+[2] MAINTENANCE EFFECTIVENESS: FREQUENCY vs ADHERENCE
+----------------------------------------------------------------------
+
+Scenario             Freq  Adh    Maint  Log-Risk     Disaster
+----------------------------------------------------------------------
+Low freq, poor adh     0.5   0.4   0.02      6.50     3.16e-07
+High freq, poor adh    2.0   0.4   0.07      6.50     3.16e-07
+Low freq, good adh     0.5   0.9   0.23      6.50     3.16e-07
+Moderate, perfect      1.0   1.0   0.60      6.50     3.16e-07
+High freq, good adh    2.0   0.9   0.66      6.50     3.16e-07
+
+======================================================================
+KEY INSIGHT: Adherence > Frequency
+======================================================================
+
+Low frequency (0.5) with good adherence (90%):
+  Maintenance effect: 0.23 logs
+  Log-risk: 6.50
+
+High frequency (2.0) with poor adherence (40%):
+  Maintenance effect: 0.07 logs
+  Log-risk: 6.50
+
+✅ Good adherence with low frequency is 3.3x more effective
+
+[3] BAYESIAN UPDATING WITH SIMULATED DATA
+----------------------------------------------------------------------
+
+True model (unknown to MCMC):
+  Training:          65 hours
+  Maintenance freq:  1.20/month
+  Maintenance adh:   85%
+  Inspection:        75
+  Log-risk:          6.66
+
+Simulated 36 months of data:
+  Total incidents:   0
+  Total near-misses: 1
+
+Running MCMC (10000 iterations, burnin=2500, thin=5)...
+Acceptance rate: 0.767
+
+Posterior summaries:
+Parameter           True     Mean      Std     2.5%    97.5%
+-----------------------------------------------------------------
+training           65.00    61.78    28.66    23.91   141.67
+maint_freq          1.20     1.20     0.92     0.37     3.16
+maint_adh           0.85     0.50     0.23     0.10     0.90
+inspection         75.00    46.26    32.83     0.00    98.00
+log_risk            6.66     6.56     0.22     6.14     6.93
+
+[4] RETURN ON INVESTMENT ANALYSIS
+----------------------------------------------------------------------
+
+Training ROI (from 62 hours):
+  →  20 hours: cost=$4,178, benefit=$-57,446/yr, ROI=-13.7x
+  →  40 hours: cost=$2,178, benefit=$-19,764/yr, ROI=-9.1x
+  →  60 hours: cost=$178, benefit=$-950/yr, ROI=-5.3x
+  →  80 hours: cost=$1,822, benefit=$6,266/yr, ROI=3.4x
+  → 100 hours: cost=$3,822, benefit=$9,350/yr, ROI=2.4x
+
+Cross inspection threshold (→75): cost=$30,000, benefit=$0/yr, ROI=0.0x
+
+Optimal allocation for $100,000 budget:
+  Training:          120 hours
+  Maintenance freq:  0.50/month
+  Maintenance adh:   50%
+  Inspection:        50
+  Annual benefit:    $10,871
+  ROI:               0.8x
+  Resulting log-risk:6.90
+
+======================================================================
+
+[4b] ILLUSTRATIVE MULTI-STEP ROI (scenario_risk, n_steps=10)
+     NOTE: for qualitative comparison only, not used in MCMC or
+     per-procedure risk reporting.
+----------------------------------------------------------------------
+
+Optimal allocation for $100,000 budget (multi-step evaluation):
+  Training:          120 hours
+  Maintenance freq:  2.00/month
+  Maintenance adh:   95%
+  Inspection:        70
+  Annual benefit:    $112,840
+  ROI:               1.8x
+  Resulting log-risk:5.89
+
+[5] EDGE CLASS TABLE (manuscript appendix)
+
+Edge    Class   Base-rate (log10)
+-----------------------------------
+  (0,1)    H       3.0
+  (0,4)    H       6.0
+  (1,0)    O       2.0
+  (1,2)    E       3.0
+  (1,4)    H       5.0
+  (2,0)    O       1.5
+  (2,1)    O       2.0
+  (2,3)    E       2.5
+  (2,4)    E       4.0
+  (3,2)    O       1.0
+  (3,4)    E       2.0
