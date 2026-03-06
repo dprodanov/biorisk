@@ -82,9 +82,9 @@ Optimal allocation for $100,000 budget:
   Training:          120 hours
   Maintenance freq:  0.50/month
   Maintenance adh:   50%
-  Inspection:        50
+  Inspection:        85
   Annual benefit:    $13,499
-  ROI:               1.1x
+  ROI:               2.1x
   Resulting log-risk:6.90
 
 ======================================================================
@@ -100,7 +100,7 @@ Optimal allocation for $100,000 budget (multi-step evaluation):
   Maintenance adh:   95%
   Inspection:        70
   Annual benefit:    $156,566
-  ROI:               4.8x
+  ROI:               6.5x
   Resulting log-risk:5.88
 
 [5] EDGE CLASS TABLE (manuscript appendix)

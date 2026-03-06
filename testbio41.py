@@ -676,8 +676,13 @@ class ROIAnalysis:
         """Cost of changing intervention level."""
         if intervention == 'training':
             return abs(new_value - current_value) * 100
-        elif intervention == 'maintenance_freq':
-            return abs(new_value - current_value) * 10000
+        elif intervention == 'maintenance_adh':
+            if new_value > current_value:
+                improvement = new_value - current_value
+                base_cost = 20000
+                return base_cost * improvement * (1 + 2 * current_value)
+            return 0   # decreases are free but generate no budget
+
         elif intervention == 'maintenance_adh':
             if new_value > current_value:
                 improvement = new_value - current_value
@@ -741,8 +746,12 @@ class ROIAnalysis:
 
         for train_hours in [0, 20, 40, 60, 80, 100, 120]:
             for maint_freq in [0.5, 0.8, 1.0, 1.2, 1.5, 2.0]:
+                if maint_freq < self.base_model.maint_freq:   # ← ADD
+                   continue
                 for maint_adh in [0.5, 0.6, 0.7, 0.8, 0.9, 0.95]:
                     for insp_score in [50, 60, 70, 75, 80, 85, 90]:
+                        if insp_score < self.base_model.inspection:  # ← ADD THIS
+                            continue
                         total_cost = (
                             self.intervention_cost('training',        self.base_model.training,   train_hours) +
                             self.intervention_cost('maintenance_freq', self.base_model.maint_freq, maint_freq)  +
