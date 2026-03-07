@@ -36,7 +36,7 @@ class HazardModifier:
 
     @classmethod
     def classify_from_logrisk(cls, L: float) -> int:
-        """Map log-risk L to WHO-like RG (1–4)."""
+        """Map log-risk L to WHO-like RG (1â€“4)."""
         if L >= cls.T12:
             return 1
         elif L >= cls.T23:
@@ -60,7 +60,7 @@ class HazardModifier:
 
         adjusted_rg = cls.classify_from_logrisk(l_prior)
 
-        print(f"Parent RG{parent_rg} L={l_parent:.2f} → "
+        print(f"Parent RG{parent_rg} L={l_parent:.2f} â†’ "
               f"Adjusted L={l_prior:.2f} (RG{adjusted_rg})")
         return adjusted_rg, l_prior
 
@@ -109,17 +109,11 @@ class BiosafetyModel:
             raise ValueError("Inspection hours cannot be negative.")
 
         # Base transition rates (log10 scale) - calibrated to WHO RG-3 baseline
-        # self.base_rates = {
-        #     (0,1): 3.0, (0,4): 6.0,                           # Normal
-        #     (1,0): 2.0, (1,2): 3.0, (1,4): 5.0,               # Minor
-        #     (2,0): 1.5, (2,1): 2.0, (2,3): 2.5, (2,4): 4.0,  # Serious
-        #     (3,2): 1.0, (3,4): 2.0,                           # Critical
-        # }
         self.base_rates = {
-            (0,1): 3.0, (0,2): 4.5, (0,4): 6.0,          # Normal
-            (1,0): 2.0, (1,2): 3.0, (1,4): 5.0,           # Minor
-            (2,0): 1.5, (2,1): 2.0, (2,3): 2.5, (2,4): 4.0, # Serious
-            (3,2): 1.0, (3,4): 2.0,                        # Critical
+            (0,1): 3.0, (0,4): 6.0,                           # Normal
+            (1,0): 2.0, (1,2): 3.0, (1,4): 5.0,               # Minor
+            (2,0): 1.5, (2,1): 2.0, (2,3): 2.5, (2,4): 4.0,  # Serious
+            (3,2): 1.0, (3,4): 2.0,                           # Critical
         }
 
         # Cause-class tagging of transitions (see manuscript)
@@ -128,7 +122,6 @@ class BiosafetyModel:
         # O: inspection acts here
         self.edge_class = {
             (0,1): "H",   # procedural deviation onset
-            (0,2): "E",   # spontaneous equipment failure
             (0,4): "H",   # catastrophic human-path failure
             (1,4): "H",   # deviation leads to exposure
             (1,0): "O",   # recovery: organizational response restores normal
@@ -250,7 +243,6 @@ class BiosafetyModel:
         add((1,4), "train", 0.3 * self.train_effect)
 
         # E-class: maintenance only
-        add((0,2), "maint", 0.5 * self.maint_effect)  # spontaneous failure path
         add((1,2), "maint", 0.8 * self.maint_effect)
         add((2,3), "maint", 0.8 * self.maint_effect)
         add((2,4), "maint", 0.6 * self.maint_effect)
@@ -314,22 +306,12 @@ class BiosafetyModel:
         """
         p_single = self.risk_per_procedure()['disaster_prob']
         return 1 - (1 - p_single) ** n_procedures
-    
-    def cumulative_risk_analytical(self) -> Dict:
-        Q = self.P[:4, :4]          # transient sub-matrix
-        R = self.P[:4, 4]           # absorption column
-        N = np.linalg.inv(np.eye(4) - Q)  # fundamental matrix
-        absorption = N @ R          # absorption probabilities from each state
-        p_disaster = absorption[0]  # starting from S0
-        log_risk = -np.log10(max(p_disaster, 1e-15))
-        return {'disaster_prob': p_disaster, 'log_risk': log_risk}
-
 
     def scenario_risk(self, n_steps: int = 10) -> Dict:
         """
         Disaster probability over n_steps from S0.
     
-        Used for illustrative multi-step ROI only — not in
+        Used for illustrative multi-step ROI only â€” not in
         Bayesian updating or per-procedure risk reporting.
     
         Args:
@@ -431,7 +413,7 @@ class BiosafetyModel:
         print("\nEdge    Class   Base-rate (log10)")
         print("-" * 35)
         for (i,j), c in sorted(self.edge_class.items()):
-            base = self.base_rates.get((i,j), "—")
+            base = self.base_rates.get((i,j), "â€”")
             print(f"  ({i},{j})    {c}       {base}")
 
 
@@ -499,74 +481,27 @@ class MCMCBiosafety:
 
         return logp
 
-    # def log_likelihood(self, h: float, f: float, a: float, s: int) -> float:
-    #     """
-    #     Log-likelihood of observed data given parameters.
-
-    #     Disasters:   Binomial(N, p_disaster)
-    #     Near-misses: Binomial(N, p_S2)  where p_S2 = one-step prob of S2
-    #     """
-    #     model = BiosafetyModel(training=h, maint_freq=f, maint_adh=a, inspection=s)
-    #     risk  = model.risk_per_procedure()
-        
-
-    #     ll  = stats.binom.logpmf(
-    #         self.obs_disasters,
-    #         self.n_procedures,
-    #         risk['disaster_prob']
-    #     )
-    #     ll += stats.binom.logpmf(
-    #         self.obs_nearmisses,
-    #         self.n_procedures,
-    #         risk['state_probs']['S1_Minor']
-    #     )
-    #     return ll
     def log_likelihood(self, h: float, f: float, a: float, s: int) -> float:
-         """
-         Log-likelihood of observed data given parameters.
-     
-         Two observables on distinct timescales:
-     
-         Disasters: one-step probability of direct S0->S4 transition
-             p_disaster = P[0,4]
-             Timescale: per-procedure (single Markov step)
-             Sensitive to: H-class (training), O-class (inspection)
-     
-         Near-misses: steady-state S1 occupancy of transient sub-matrix Q
-             p_nearmiss = pi*_1  where pi* Q = pi* (normalised)
-             Timescale: long-run equilibrium of escalation ladder
-             Sensitive to: all intervention classes including E-class (maintenance)
-     
-         Likelihood:
-             L(d, n | theta) = Binomial(d | N, P[0,4](theta))
-                             * Binomial(n | N, pi*_1(theta))
-         """
-         model = BiosafetyModel(training=h, maint_freq=f, maint_adh=a, inspection=s)
-     
-         # Disaster: one-step per-procedure metric
-         risk_1step = model.risk_per_procedure()
-         p_disaster = risk_1step['disaster_prob']
-     
-         # Near-miss: steady-state S1 occupancy of transient sub-matrix
-         Q = model.P[:4, :4]
-         eigvals, eigvecs = np.linalg.eig(Q.T)
-         idx = np.argmax(np.real(eigvals))          # eigenvalue closest to 1
-         pi_star = np.abs(np.real(eigvecs[:, idx]))
-         pi_star /= pi_star.sum()
-         p_nearmiss = pi_star[1]                    # S1 steady-state occupancy
-     
-         ll = stats.binom.logpmf(
-             self.obs_disasters,
-             self.n_procedures,
-             p_disaster
-         )
-         ll += stats.binom.logpmf(
-             self.obs_nearmisses,
-             self.n_procedures,
-             p_nearmiss
-         )
-         return ll
+        """
+        Log-likelihood of observed data given parameters.
 
+        Disasters:   Binomial(N, p_disaster)
+        Near-misses: Binomial(N, p_S2)  where p_S2 = one-step prob of S2
+        """
+        model = BiosafetyModel(training=h, maint_freq=f, maint_adh=a, inspection=s)
+        risk  = model.risk_per_procedure()
+
+        ll  = stats.binom.logpmf(
+            self.obs_disasters,
+            self.n_procedures,
+            risk['disaster_prob']
+        )
+        ll += stats.binom.logpmf(
+            self.obs_nearmisses,
+            self.n_procedures,
+            risk['state_probs']['S1_Minor']
+        )
+        return ll
 
     def sample_proposal(self, current: Dict, scale: Dict) -> Dict:
         """Generate proposal parameters with random walk."""
@@ -676,13 +611,8 @@ class ROIAnalysis:
         """Cost of changing intervention level."""
         if intervention == 'training':
             return abs(new_value - current_value) * 100
-        elif intervention == 'maintenance_adh':
-            if new_value > current_value:
-                improvement = new_value - current_value
-                base_cost = 20000
-                return base_cost * improvement * (1 + 2 * current_value)
-            return 0   # decreases are free but generate no budget
-
+        elif intervention == 'maintenance_freq':
+            return abs(new_value - current_value) * 10000
         elif intervention == 'maintenance_adh':
             if new_value > current_value:
                 improvement = new_value - current_value
@@ -702,11 +632,6 @@ class ROIAnalysis:
         new_annual = (new_model.risk_per_procedure()['disaster_prob']
                       * self.annual_procedures * self.disaster_cost)
         return old_annual - new_annual
-    
-    # def annual_benefit(self, new_model):
-    #     old_p = self.base_model.cumulative_risk_analytical()['disaster_prob']
-    #     new_p = new_model.cumulative_risk_analytical()['disaster_prob']
-    #     return (old_p - new_p) * self.annual_procedures * self.disaster_cost
 
     def analyze_intervention(self,
                              intervention: str,
@@ -746,12 +671,8 @@ class ROIAnalysis:
 
         for train_hours in [0, 20, 40, 60, 80, 100, 120]:
             for maint_freq in [0.5, 0.8, 1.0, 1.2, 1.5, 2.0]:
-                if maint_freq < self.base_model.maint_freq:   # ← ADD
-                   continue
                 for maint_adh in [0.5, 0.6, 0.7, 0.8, 0.9, 0.95]:
                     for insp_score in [50, 60, 70, 75, 80, 85, 90]:
-                        if insp_score < self.base_model.inspection:  # ← ADD THIS
-                            continue
                         total_cost = (
                             self.intervention_cost('training',        self.base_model.training,   train_hours) +
                             self.intervention_cost('maintenance_freq', self.base_model.maint_freq, maint_freq)  +
@@ -787,7 +708,7 @@ class ROIAnalysis:
     
         This uses multi-step absorption probability so that maintenance
         and inspection effects on intermediate-state transitions are visible.
-        Clearly labeled as illustrative — not used in Bayesian updating or
+        Clearly labeled as illustrative â€” not used in Bayesian updating or
         per-procedure risk reporting.
     
         Args:
@@ -847,56 +768,12 @@ class ROIAnalysis:
 # DATA SIMULATION
 # ============================================================================
 
-# def simulate_observations(model: BiosafetyModel,
-#                            n_months: int = 36,
-#                            procedures_per_month: int = 100,
-#                            seed: Optional[int] = None) -> pd.DataFrame:
-#     """
-#     Simulate observed incident data from a model.
-
-#     Args:
-#         model: True underlying model
-#         n_months: Number of months to simulate
-#         procedures_per_month: Procedures per month
-#         seed: Random seed
-
-#     Returns:
-#         DataFrame with monthly incident counts
-#     """
-#     if seed is not None:
-#         np.random.seed(seed)
-
-#     risk       = model.risk_per_procedure()
-#     p_disaster = risk['disaster_prob']
-#     # p_nearmiss = risk['state_probs']['S2_Serious']
-#     p_nearmiss = risk['state_probs']['S1_Minor']
-
-#     data = []
-#     for month in range(1, n_months + 1):
-#         incidents   = np.random.binomial(procedures_per_month, p_disaster)
-#         incidents= int(np.round(incidents)) 
-#         near_misses = np.random.binomial(procedures_per_month, p_nearmiss)
-#         near_misses= int(np.round(near_misses))
-#         data.append({
-#             'month':       month,
-#             'incidents':   incidents,
-#             'near_misses': near_misses
-#         })
-#     return pd.DataFrame(data)
 def simulate_observations(model: BiosafetyModel,
-                          n_months: int = 36,
-                          procedures_per_month: int = 100,
-                          seed: Optional[int] = None) -> pd.DataFrame:
+                           n_months: int = 36,
+                           procedures_per_month: int = 100,
+                           seed: Optional[int] = None) -> pd.DataFrame:
     """
     Simulate observed incident data from a model.
-
-    Two observables on distinct timescales:
-
-    Disasters: one-step per-procedure probability P[0,4]
-        Sensitive to: H-class (training), O-class (inspection)
-
-    Near-misses: steady-state S1 occupancy pi*_1 of transient sub-matrix Q
-        Sensitive to: all intervention classes including E-class (maintenance)
 
     Args:
         model: True underlying model
@@ -910,25 +787,20 @@ def simulate_observations(model: BiosafetyModel,
     if seed is not None:
         np.random.seed(seed)
 
-    # Disaster probability: one-step per-procedure
-    risk = model.risk_per_procedure()
+    risk       = model.risk_per_procedure()
     p_disaster = risk['disaster_prob']
-
-    # Near-miss probability: steady-state S1 occupancy
-    Q = model.P[:4, :4]
-    eigvals, eigvecs = np.linalg.eig(Q.T)
-    idx = np.argmax(np.real(eigvals))          # eigenvector for dominant eigenvalue
-    pi_star = np.abs(np.real(eigvecs[:, idx]))
-    pi_star /= pi_star.sum()
-    p_nearmiss = pi_star[1]                    # S1 steady-state occupancy
+    # p_nearmiss = risk['state_probs']['S2_Serious']
+    p_nearmiss = risk['state_probs']['S1_Minor']
 
     data = []
     for month in range(1, n_months + 1):
-        incidents = int(np.random.binomial(procedures_per_month, p_disaster))
-        near_misses = int(np.random.binomial(procedures_per_month, p_nearmiss))
+        incidents   = np.random.binomial(procedures_per_month, p_disaster)
+        incidents= int(np.round(incidents)) 
+        near_misses = np.random.binomial(procedures_per_month, p_nearmiss)
+        near_misses= int(np.round(near_misses))
         data.append({
-            'month': month,
-            'incidents': incidents,
+            'month':       month,
+            'incidents':   incidents,
             'near_misses': near_misses
         })
     return pd.DataFrame(data)
@@ -1042,8 +914,7 @@ def demonstrate():
         print("-" * 70)
         for s in scenarios:
             model = BiosafetyModel(training=50, maint_freq=s['f'], maint_adh=s['a'], inspection=75)
-            #risk  = model.risk_per_procedure()
-            risk = model.scenario_risk(n_steps=10)     # ← CHANGE TO THIS
+            risk  = model.risk_per_procedure()
             print(f"{s['name']:20} {s['f']:5.1f} {s['a']:5.1f} "
                   f"{model.maint_effect:6.2f} {risk['log_risk']:9.2f} {risk['disaster_prob']:12.2e}")
     
@@ -1053,17 +924,12 @@ def demonstrate():
         print("KEY INSIGHT: Adherence > Frequency")
         print("="*70)
         print(f"\nLow frequency (0.5) with good adherence (90%):")
-        # print(f"  Maintenance effect: {low_good.maint_effect:.2f} logs")
-        #print(f"  Maintenance effect: Log-risk: {low_good.risk_per_procedure()['log_risk']:.2f}")
-        #print(f"  Log-risk: {low_good.scenario_risk(n_steps=10)['log_risk']:.2f}")
         print(f"  Maintenance effect: {low_good.maint_effect:.2f} logs")
-        print(f"  Log-risk: {low_good.scenario_risk(n_steps=10)['log_risk']:.2f}")
-
+        print(f"  Log-risk: {low_good.risk_per_procedure()['log_risk']:.2f}")
         print(f"\nHigh frequency (2.0) with poor adherence (40%):")
         print(f"  Maintenance effect: {high_poor.maint_effect:.2f} logs")
-       # print(f"  Log-risk: {high_poor.risk_per_procedure()['log_risk']:.2f}")
-        print(f"  Log-risk: {high_poor.scenario_risk(n_steps=10)['log_risk']:.2f}")
-        print(f"\n✅ Good adherence with low frequency is "
+        print(f"  Log-risk: {high_poor.risk_per_procedure()['log_risk']:.2f}")
+        print(f"\nâœ… Good adherence with low frequency is "
               f"{low_good.maint_effect/high_poor.maint_effect:.1f}x more effective")
     
         # [3] MCMC
@@ -1123,7 +989,7 @@ def demonstrate():
                 )
                 benefit = roi.annual_benefit(model_h)
                 roi_val = benefit / cost if cost > 0 else 0
-                print(f"  → {hours:3.0f} hours: cost=${cost:,.0f}, benefit=${benefit:,.0f}/yr, ROI={roi_val:.1f}x")
+                print(f"  â†’ {hours:3.0f} hours: cost=${cost:,.0f}, benefit=${benefit:,.0f}/yr, ROI={roi_val:.1f}x")
     
         if updated_model.inspection < 70:
             cost    = roi.intervention_cost('inspection', updated_model.inspection, 75)
@@ -1133,7 +999,7 @@ def demonstrate():
             )
             benefit = roi.annual_benefit(model_i)
             roi_val = benefit / cost if cost > 0 else 0
-            print(f"\nCross inspection threshold (→75): cost=${cost:,.0f}, "
+            print(f"\nCross inspection threshold (â†’75): cost=${cost:,.0f}, "
                   f"benefit=${benefit:,.0f}/yr, ROI={roi_val:.1f}x")
     
         print(f"\nOptimal allocation for $100,000 budget:")
@@ -1178,7 +1044,7 @@ def demonstrate():
                f.write(output_text)
            sys.stdout = old_stdout
            
-           print(f"✅ Complete demo saved: {output_file} ({len(output_text):,} characters)")        
+           print(f"âœ… Complete demo saved: {output_file} ({len(output_text):,} characters)")        
     
     # Plots
     try:
@@ -1192,9 +1058,9 @@ def demonstrate():
             'log_risk':   true_risk['log_risk']
         }
         plot_posterior(posterior, true_vals)
-        print("✅ Plots saved: maintenance_heatmap.png, posterior.png")
+        print("âœ… Plots saved: maintenance_heatmap.png, posterior.png")
     except Exception as e:
-        print(f"⚠️  Could not generate plots: {e}")
+        print(f"âš ï¸  Could not generate plots: {e}")
 
 
  
@@ -1209,7 +1075,7 @@ def test_crispr_bt_crop():
     try:    
         print("="*70)
         print("CRISPR Bt CROP RISK ASSESSMENT")
-        print("RG II parent → synthetic pathogenicity risk")
+        print("RG II parent â†’ synthetic pathogenicity risk")
         print("="*70)
         
         
@@ -1267,14 +1133,14 @@ def test_crispr_bt_crop():
         
         print(f"\nREGULATORY IMPLICATIONS:")
         print(f"  Posterior mean {post_risk['log_risk']:.2f} "
-              f"{'risky (<)' if post_mean_risky else 'safe (≥)'} "
+              f"{'risky (<)' if post_mean_risky else 'safe (â‰¥)'} "
               f"RG2/3 threshold {prior_threshold}")
-        print(f"  95% CrI upper {'safe (≥)' if ci_upper_safe else 'risky (<)'} threshold")
+        print(f"  95% CrI upper {'safe (â‰¥)' if ci_upper_safe else 'risky (<)'} threshold")
         
         if post_mean_risky or not ci_upper_safe:
-            print("  → ESCALATE to RG III containment (EU GMO Directive)")
+            print("  â†’ ESCALATE to RG III containment (EU GMO Directive)")
         else:
-            print("  → Remains RG II")
+            print("  â†’ Remains RG II")
         
         print("="*70)
         risk_improvement = post_risk['log_risk'] - prior_risk['log_risk']
@@ -1287,7 +1153,7 @@ def test_crispr_bt_crop():
                f.write(output_text)
            sys.stdout = old_stdout
            
-           print(f"✅ Demo saved: {output_file} ({len(output_text):,} characters)")
+           print(f"âœ… Demo saved: {output_file} ({len(output_text):,} characters)")
     return prior_risk, post_risk, posterior           
            
         
@@ -1385,7 +1251,7 @@ def test_h5n1_kawaoka():
                f.write(output_text)
            sys.stdout = old_stdout
            
-           print(f"✅ Demo saved: {output_file} ({len(output_text):,} characters)")
+           print(f"âœ… Demo saved: {output_file} ({len(output_text):,} characters)")
     return priorrisk, postrisk, posterior   
            
 
@@ -1400,7 +1266,7 @@ def test_fouchier_h5n1():
     try:
         print(70 * "=")
         print("H5N1 FOUCHIER GOF (2011-12 Erasmus MC)")
-        print("5 mutations → ferret airborne transmission")
+        print("5 mutations â†’ ferret airborne transmission")
         print(70 * "=")
     
         # PRIOR: RG3 H5N1 ferret-transmissible (L=4.0 target)
@@ -1487,7 +1353,7 @@ def test_fouchier_h5n1():
                f.write(output_text)
            sys.stdout = old_stdout
            
-           print(f"✅ Demo saved: {output_file} ({len(output_text):,} characters)")
+           print(f"âœ… Demo saved: {output_file} ({len(output_text):,} characters)")
     return priorrisk, postrisk, posterior
 
 # Run demo  
@@ -1502,7 +1368,7 @@ if __name__ == "__main__":
         "5": ("Run all", None),
     }
 
-    print("\nBiorisk Framework — Select an option:")
+    print("\nBiorisk Framework â€” Select an option:")
     for key, (label, _) in demos.items():
         print(f"  {key}. {label}")
 
@@ -1520,7 +1386,7 @@ if __name__ == "__main__":
     else:
         print("Invalid choice. Please enter a number between 1 and 5.")
         
-    print("✅ DEMONSTRATION COMPLETE")
+    print("âœ… DEMONSTRATION COMPLETE")
     print("="*70)
 
 
