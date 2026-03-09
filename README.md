@@ -55,10 +55,9 @@ typing
 git clone https://github.com/dprodanov/biorisk.git
 cd biorisk
 pip install -r requirements.txt
- 
-## Example use 
+```
 
-## Quick Start
+## Example use  
 
 ```python
 from biosafety_model_v54 import (
