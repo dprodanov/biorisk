@@ -1,0 +1,10 @@
+Laboratory biosafety traditionally uses categorical Risk Groups and checklists
+that cannot quantify intervention effectiveness. This paper specifies a Bayesian
+Markov chain framework combining WHO Risk Group priors with five-state escalation
+from normal operation to disaster, reporting risk on a log-risk scale analogous
+to decibels.
+Training, maintenance, and inspection effects decompose cleanly via a sparse
+weight matrix. Bayesian updating from near-misses, light incidents, and disasters
+recovers composite risk metrics even with non-identifiable parameters.
+The framework operationalises ISO 35001:2019 and WHO LBM4, transforming static
+compliance into quantitative decision support.
