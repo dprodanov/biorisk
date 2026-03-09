@@ -42,7 +42,7 @@ jobs:
 
     - name: Test with pytest
       run: |
-        pytest tests/ -v --cov=biorisk --cov-report=xml
+         pytest test_biorisk.py -v --tb=short
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
