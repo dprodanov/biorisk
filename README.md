@@ -41,9 +41,8 @@ and compliance inspection.
 
 numpy
 scipy
-matplotlib
-plotly
-kaleido
+pandas
+typing
 
 ---
 
@@ -84,8 +83,9 @@ print(posterior.summary())
 # ROI analysis
 roi = model.compute_roi(budget=100_000)
 print(roi.optimal_allocation())
-```bash
+```
 
+---
 ## Mathematical Specification
 
 A complete self-contained mathematical specification of the framework
