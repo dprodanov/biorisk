@@ -37,24 +37,13 @@ and compliance inspection.
 
 
 ---
-## Requirements
 
-numpy
-
-scipy
-
-pandas
-
-typing
-
----
-
-## Installation
+## Installation and Requirements
 
 ```bash
 git clone https://github.com/dprodanov/biorisk.git
 cd biorisk
-pip install -r requirements.txt
+pip install numpy scipy pandas
 ```
 
 ## Example use  
@@ -128,8 +117,7 @@ print(f"Cost: ${best['cost']:,}, benefit: ${best['total_benefit']:,.0f}/yr")
 ## Mathematical Specification
 
 A complete self-contained mathematical specification of the framework
-is provided in paper/biorisk_framework_spec.tex (Supplementary
-Material S1 of the manuscript). It covers:
+is provided in [biorisk_specv54.pdf](biorisk_specv54.pdf). It covers:
 
 - Log-risk metric and cMFPT definition
 
