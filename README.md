@@ -40,8 +40,11 @@ and compliance inspection.
 ## Requirements
 
 numpy
+
 scipy
+
 pandas
+
 typing
 
 ---
@@ -55,34 +58,71 @@ pip install -r requirements.txt
  
 ## Example use 
 
-from biosafety_model_v54 import BiosafetyModel
+## Quick Start
 
-# Initialise with intervention parameters
+```python
+from biosafety_model_v54 import (
+    BiosafetyModel,
+    MCMCBiosafety,
+    simulate_observations,
+    training_roi,
+    maintenance_roi_log,
+    inspection_roi_log,
+    optimal_allocation,
+)
+
+# --- Instantiate a BSL-3 facility model ---
 model = BiosafetyModel(
-    training_hours=50,
-    maint_frequency=1.0,   # sessions per month
-    maint_adherence=0.9,   # fraction completed
-    inspection_score=75,   # 0-100
+    training=50.0,       # hours
+    maint_freq=1.0,      # sessions per month
+    maint_adh=0.8,       # fraction of sessions completed
+    inspection=75.0,     # score 0-100 (threshold at 70)
+    natech_rate=7.5,     # site profile (Brussels inland default)
 )
 
-# Compute log-risk metrics
-print(f"L   = {model.L:.3f}")    # training channel
-print(f"L_M = {model.L_M:.3f}") # maintenance channel
-print(f"L_I = {model.L_I:.3f}") # inspection channel
+# --- Compute the three log-risk metrics ---
+mt = model.metrics(lambda_proc=500)  # 500 procedures/month
+print(f"L       = {mt['L']:.3f}")        # training channel
+print(f"logM_S1 = {mt['logM_S1']:.3f}") # maintenance channel
+print(f"logM_S2 = {mt['logM_S2']:.3f}") # inspection channel
 
-# Run Bayesian update with local incident data
-posterior = model.mcmc_update(
-    n_procedures=18000,
-    near_misses=6,
-    light_incidents=17,
-    disasters=0,
-    n_iter=20000,
-)
-print(posterior.summary())
+# --- Simulate 36 months of observations ---
+data = simulate_observations(model, n_months=36,
+                             procedures_per_month=500, seed=42)
+print(data[["near_misses", "light_incidents", "disasters"]].sum())
 
-# ROI analysis
-roi = model.compute_roi(budget=100_000)
-print(roi.optimal_allocation())
+# --- Bayesian update from observed data ---
+mcmc = MCMCBiosafety(initial_model=model, observed_data=data)
+posterior = mcmc.run(n_iter=20000, burnin=5000, thin=5, seed=99)
+print(posterior[["L", "logM_S1", "logM_S2"]].describe())
+
+# --- ROI analysis ---
+base = BiosafetyModel(training=20, maint_freq=0.5,
+                      maint_adh=0.5, inspection=50)
+
+r_train = training_roi(base, new_training=60,
+                       N_annual=10_000, V=50_000_000)
+print(f"Training ROI: {r_train['roi']:.1f}x, "
+      f"payback {r_train['payback_yr']:.2f} yr")
+
+r_maint = maintenance_roi_log(base, new_freq=1.0, new_adh=0.9)
+print(f"Maintenance: +{r_maint['delta_logM_S1']:.3f} logs, "
+      f"{r_maint['log_per_1k']:.4f} DlogM/$1k")
+
+r_insp = inspection_roi_log(base, new_inspection=75)
+print(f"Inspection: +{r_insp['delta_logM_S2']:.3f} logs, "
+      f"{r_insp['log_per_1k']:.4f} DlogM/$1k")
+
+# --- Optimal $100k budget allocation ---
+best = optimal_allocation(base, budget=100_000,
+                          N_annual=10_000, V=50_000_000)
+print(f"Optimal: training={best['training']:.0f}h, "
+      f"freq={best['maint_freq']:.1f}, adh={best['maint_adh']:.0%}, "
+      f"insp={best['inspection']:.0f}")
+print(f"Cost: ${best['cost']:,}, benefit: ${best['total_benefit']:,.0f}/yr")
+
+# --- Run full demonstration (reproduces all paper tables) ---
+# python biosafety_model_v54.py
 ```
 
 ---
