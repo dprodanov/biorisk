@@ -37,15 +37,6 @@ and compliance inspection.
 
 
 ---
-
-## Installation
-
-```bash
-git clone https://github.com/dprodanov/biorisk.git
-cd biorisk
-pip install -r requirements.txt
-
----
 ## Requirements
 
 numpy
@@ -55,6 +46,14 @@ plotly
 kaleido
 
 ---
+
+## Installation
+
+```bash
+git clone https://github.com/dprodanov/biorisk.git
+cd biorisk
+pip install -r requirements.txt
+ 
 ## Example use 
 
 from biosafety_model_v54 import BiosafetyModel
@@ -85,6 +84,7 @@ print(posterior.summary())
 # ROI analysis
 roi = model.compute_roi(budget=100_000)
 print(roi.optimal_allocation())
+```bash
 
 ## Mathematical Specification
 
@@ -92,14 +92,14 @@ A complete self-contained mathematical specification of the framework
 is provided in paper/biorisk_framework_spec.tex (Supplementary
 Material S1 of the manuscript). It covers:
 
-Log-risk metric and cMFPT definition
+- Log-risk metric and cMFPT definition
 
-Five-state Markov chain and edge class taxonomy
+- Five-state Markov chain and edge class taxonomy
 
-All three intervention effect functions with parameter justification
+- All three intervention effect functions with parameter justification
 
-Bayesian likelihood, prior distributions, and MCMC implementation
+- Bayesian likelihood, prior distributions, and MCMC implementation
 
-Cost-effectiveness metrics and assumed intervention costs
+- Cost-effectiveness metrics and assumed intervention costs
 
-Full intervention weight matrix with design rationale
+- Full intervention weight matrix with design rationale
