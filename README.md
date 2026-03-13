@@ -8,8 +8,9 @@
 This repository contains the Python implementation of a quantitative
 Bayesian framework for laboratory biosafety risk management, as described in:
 
-> D. Prodanov, *Making Biorisk Measurable: A Bayesian Framework for
-> Laboratory Risk Management*, preprint, 2026.
+> Dimiter Prodanov, Making Biorisk Measurable: A Bayesian Framework for Laboratory Risk Management
+> bioRxiv (preprint) 2026.03.09.710076; 2025; doi: https://doi.org/10.64898/2026.03.09.710076
+
 
 The framework combines WHO Risk Group classification with a five-state
 Markov chain model of the incident–disaster escalation chain, reporting
