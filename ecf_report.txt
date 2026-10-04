@@ -1,4 +1,4 @@
-%runfile C:/Users/dimit/Dropbox/scale/EMQM2017/burgers/erfyukawa/comprehensive_monte_carlo.py --wdir
+%runfile comprehensive_monte_carlo.py --wdir
 ================================================================================
 COMPREHENSIVE MONTE CARLO UNCERTAINTY ANALYSIS
 Yukawa Diffusion Integral - Physiological Ion Transport
